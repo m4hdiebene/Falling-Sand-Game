@@ -31,6 +31,8 @@ export const HelpModal = ({ isOpen, onClose }) => {
     { key: 'F3', action: 'Toggle PC Speaker Audio' },
     { key: 'F4', action: 'Toggle CRT Scanline Overlay' },
     { key: 'F5', action: 'Toggle Thermal Heat Map View' },
+    { key: 'F6', action: 'Quick Save (Local Storage)' },
+    { key: 'F7', action: 'Quick Load (Local Storage)' },
     { key: 'Ctrl+Z', action: 'Undo Edit Action' },
     { key: 'Ctrl+Y', action: 'Redo Edit Action' },
   ];

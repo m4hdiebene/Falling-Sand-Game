@@ -329,6 +329,39 @@ export const CanvasViewport = ({
     link.click();
   };
 
+  // Quick Save to LocalStorage
+  const handleQuickSave = () => {
+    if (!engine) return;
+    pcSpeaker.playClick();
+    const data = {
+      width: engine.width,
+      height: engine.height,
+      grid: Array.from(engine.grid),
+      temp: Array.from(engine.temp),
+    };
+    localStorage.setItem('sandDosQuickSave', JSON.stringify(data));
+  };
+
+  // Quick Load from LocalStorage
+  const handleQuickLoad = () => {
+    if (!engine) return;
+    const saved = localStorage.getItem('sandDosQuickSave');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        if (data.grid && data.grid.length === engine.size) {
+          engine.pushUndoState();
+          engine.grid.set(data.grid);
+          if (data.temp) engine.temp.set(data.temp);
+          engine.render();
+          pcSpeaker.playClick();
+        }
+      } catch (err) {
+        console.error('Failed to load quick save', err);
+      }
+    }
+  };
+
   // Import World from JSON File
   const handleImportWorld = (e) => {
     const file = e.target.files[0];
@@ -460,6 +493,22 @@ export const CanvasViewport = ({
             <Square className="h-3 w-3" /> Box
           </button>
 
+          <button
+            onClick={handleQuickSave}
+            className="flex items-center space-x-1 border border-white bg-[#AA0000] px-1.5 py-0.5 text-xs text-white font-bold hover:bg-[#FFFF55] hover:text-black"
+            title="Quick Save to Browser LocalStorage (F6)"
+          >
+            <span>Q.SAVE</span>
+          </button>
+
+          <button
+            onClick={handleQuickLoad}
+            className="flex items-center space-x-1 border border-white bg-[#00AA00] px-1.5 py-0.5 text-xs text-white font-bold hover:bg-[#FFFF55] hover:text-black"
+            title="Quick Load from Browser LocalStorage (F7)"
+          >
+            <span>Q.LOAD</span>
+          </button>
+
           {/* Save / Load JSON World Buttons */}
           <button
             onClick={handleExportWorld}
@@ -467,7 +516,7 @@ export const CanvasViewport = ({
             title="Save Sandbox World to JSON File"
           >
             <Download className="h-3 w-3" />
-            <span className="hidden md:inline">SAVE</span>
+            <span className="hidden md:inline">FILE</span>
           </button>
 
           <button

@@ -99,6 +99,33 @@ export function App() {
         setShowHelp(false);
         setShowPresets(false);
         setShowMatrix(false);
+      } else if (key === 'F6') {
+        e.preventDefault();
+        pcSpeaker.playClick();
+        const data = {
+          width: engine.width,
+          height: engine.height,
+          grid: Array.from(engine.grid),
+          temp: Array.from(engine.temp),
+        };
+        localStorage.setItem('sandDosQuickSave', JSON.stringify(data));
+      } else if (key === 'F7') {
+        e.preventDefault();
+        const saved = localStorage.getItem('sandDosQuickSave');
+        if (saved) {
+          try {
+            const data = JSON.parse(saved);
+            if (data.grid && data.grid.length === engine.size) {
+              engine.pushUndoState();
+              engine.grid.set(data.grid);
+              if (data.temp) engine.temp.set(data.temp);
+              engine.render();
+              pcSpeaker.playClick();
+            }
+          } catch(err) {
+            console.error('Failed to load quick save', err);
+          }
+        }
       }
 
       const num = parseInt(key);
