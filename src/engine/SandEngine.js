@@ -833,18 +833,62 @@ export class SandEngine {
           const currentId = this.get(x, y);
           if (currentId === ELEMENT_IDS.VOID || currentId === ELEMENT_IDS.CONCRETE) continue;
 
-          if (currentId === ELEMENT_IDS.GLASS && distSq <= rSq * 0.7) {
-            this.set(x, y, ELEMENT_IDS.SAND, 0);
-            continue;
+          // Blast displacement for physical matter
+          if (
+            currentId !== ELEMENT_IDS.EMPTY &&
+            currentId !== ELEMENT_IDS.FIRE &&
+            currentId !== ELEMENT_IDS.SMOKE &&
+            currentId !== ELEMENT_IDS.SPARK &&
+            currentId !== ELEMENT_IDS.STEAM
+          ) {
+            // Blast trajectory
+            let blastDist = Math.sqrt(distSq);
+            if (blastDist === 0) blastDist = 1;
+            const dirX = dx / blastDist;
+            const dirY = dy / blastDist;
+
+            // Throw distance based on how close to center
+            const throwForce = (radius - blastDist) * 1.5;
+            let destX = x;
+            let destY = y;
+            
+            // Raycast outward to find an empty landing spot
+            for (let step = 1; step <= throwForce; step++) {
+              const tx = Math.floor(x + dirX * step);
+              const ty = Math.floor(y + dirY * step);
+              if (tx < 0 || tx >= this.width || ty < 0 || ty >= this.height) break;
+              if (this.get(tx, ty) === ELEMENT_IDS.EMPTY) {
+                destX = tx;
+                destY = ty;
+              } else if (this.get(tx, ty) === ELEMENT_IDS.CONCRETE) {
+                break; // Stop flying if hits wall
+              }
+            }
+
+            // Move the material if it found a new spot
+            if (destX !== x || destY !== y) {
+               let blastedId = currentId;
+               // Shatter glass and stone
+               if (currentId === ELEMENT_IDS.GLASS || currentId === ELEMENT_IDS.STONE) {
+                  if (Math.random() < 0.6) blastedId = ELEMENT_IDS.SAND;
+               }
+               this.set(destX, destY, blastedId, 0);
+            }
+            
+            // Clear the original spot to make room for explosion fire
+            this.set(x, y, ELEMENT_IDS.EMPTY, 0);
           }
 
-          if (distSq <= rSq * 0.45) {
-            this.set(x, y, Math.random() < 0.4 ? ELEMENT_IDS.SPARK : ELEMENT_IDS.FIRE, 15);
-          } else if (distSq <= rSq * 0.85) {
-            this.set(x, y, Math.random() < 0.6 ? ELEMENT_IDS.FIRE : ELEMENT_IDS.SMOKE, 35);
-          } else {
-            if (Math.random() < 0.5) {
-              this.set(x, y, ELEMENT_IDS.SMOKE, 30);
+          // Spawn explosion gas/fire in the newly cleared space
+          if (this.get(x, y) === ELEMENT_IDS.EMPTY) {
+            if (distSq <= rSq * 0.45) {
+              this.set(x, y, Math.random() < 0.4 ? ELEMENT_IDS.SPARK : ELEMENT_IDS.FIRE, 15);
+            } else if (distSq <= rSq * 0.85) {
+              this.set(x, y, Math.random() < 0.6 ? ELEMENT_IDS.FIRE : ELEMENT_IDS.SMOKE, 35);
+            } else {
+              if (Math.random() < 0.5) {
+                this.set(x, y, ELEMENT_IDS.SMOKE, 30);
+              }
             }
           }
         }
