@@ -1,14 +1,48 @@
-// Sand-DOS v3.1 Reaction Matrix & Encyclopedia Reference Modal
+// Sand-DOS v3.1 Expanded Reaction Matrix & Encyclopedia Reference Modal
 import React from 'react';
 import { DosWindow } from './DosWindow';
-import { ELEMENTS, ELEMENT_IDS } from '../engine/elements';
-import { FlaskConical, Zap, Flame, ShieldAlert, Sparkles } from 'lucide-react';
-import { pcSpeaker } from '../audio/pcSpeaker';
+import { FlaskConical } from 'lucide-react';
 
 export const ReactionMatrixModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   const reactions = [
+    {
+      combo: 'Portal Blue (A) + Element',
+      result: 'Teleports to Portal Orange (B)',
+      desc: 'Elements entering Portal A instantly exit out of Portal B.',
+      badge: 'bg-[#0096FF] text-white',
+    },
+    {
+      combo: 'Laser Emitter + Fuel / Ice / Wax',
+      result: 'Ignites Fuel / Vaporizes Ice / Melts Wax',
+      desc: 'Emits intense red laser beam shooting through air to melt or ignite target.',
+      badge: 'bg-[#FF0064] text-white',
+    },
+    {
+      combo: 'Mite / Bug + Plant / Wood',
+      result: 'Consumes Plant & Clones Offspring',
+      desc: 'Living bugs crawl along surfaces, eating plants to reproduce.',
+      badge: 'bg-[#FFC800] text-black',
+    },
+    {
+      combo: 'C4 / TNT Blast + Glass Window',
+      result: 'Glass Shatters into Sand Dust',
+      desc: 'Glass blocks resist acid and fire, but shatter under heavy explosive shockwaves.',
+      badge: 'bg-[#C8EBF5] text-black',
+    },
+    {
+      combo: 'Wax + Fire / Lava / Laser',
+      result: 'Melts into Liquid Wax ➜ Solidifies when Cold',
+      desc: 'Paraffin wax thaws under heat, flowing like liquid until cooled.',
+      badge: 'bg-[#F0E6BE] text-black',
+    },
+    {
+      combo: 'LPG Gas Fuel + Fire / Spark',
+      result: 'Volatile Flame Storm Blast',
+      desc: 'Floating fuel gas combusts in a rapid fiery chain reaction.',
+      badge: 'bg-[#B464FF] text-white',
+    },
     {
       combo: 'Water + Fire',
       result: 'Steam / Vapor + Extinguishes Fire',
@@ -22,18 +56,6 @@ export const ReactionMatrixModal = ({ isOpen, onClose }) => {
       badge: 'bg-[#8C641E] text-white',
     },
     {
-      combo: 'Fire / Spark + Gunpowder',
-      result: 'Explosive Flash Blast + Shrapnel Sparks',
-      desc: 'Gunpowder combusts in a fast chain reaction explosion.',
-      badge: 'bg-[#4B5055] text-white',
-    },
-    {
-      combo: 'Fire / Spark + C4 Explosive',
-      result: 'Massive Shockwave Detonation',
-      desc: 'Triggers a wide-area blast wave destroying surrounding walls.',
-      badge: 'bg-[#D2C396] text-black',
-    },
-    {
       combo: 'Acid + Stone / Wood / Sand / Water',
       result: 'Corrosive Fizzing Dissolution + Acid Vapor',
       desc: 'Acid dissolves solids and liquids until neutralized.',
@@ -44,30 +66,6 @@ export const ReactionMatrixModal = ({ isOpen, onClose }) => {
       result: 'Solidifies into Stone Wall + Steam',
       desc: 'Water cools lava down into hard permanent stone.',
       badge: 'bg-[#FF3C0A] text-white',
-    },
-    {
-      combo: 'Plant / Wood + Water',
-      result: 'Hydrated Plant Growth & Vines',
-      desc: 'Plants absorb adjacent water to sprout and grow new branches.',
-      badge: 'bg-[#2DAA3C] text-white',
-    },
-    {
-      combo: 'Ice + Fire / Lava',
-      result: 'Melts Ice into Water',
-      desc: 'Heat thaws solid ice back into liquid water.',
-      badge: 'bg-[#AFE1FF] text-black',
-    },
-    {
-      combo: 'Cloner + Falling Element',
-      result: 'Infinite Duplicate Stream',
-      desc: 'Cloner absorbs element on top and generates infinite duplicates below.',
-      badge: 'bg-[#D228DC] text-white',
-    },
-    {
-      combo: 'Black Hole (Void) + Anything',
-      result: 'Total Matter Destruction',
-      desc: 'Consumes any matter that enters its singularity boundary.',
-      badge: 'bg-[#280A3C] text-white',
     },
   ];
 
@@ -80,17 +78,15 @@ export const ReactionMatrixModal = ({ isOpen, onClose }) => {
         headerBg="bg-[#0000AA]"
       >
         <div className="space-y-3">
-          {/* Info Banner */}
           <div className="border border-black bg-[#E0E0E0] p-2 text-xs text-black">
             <span className="font-bold text-[#0000AA] flex items-center gap-1.5">
               <FlaskConical className="h-4 w-4" /> CELLULAR AUTOMATA INTERACTION MATRIX
             </span>
             <p className="mt-0.5 text-[11px] text-[#555555]">
-              Sand-DOS v3.1 features physics-based interactions calculated per frame. Here are the primary chemical reaction formulas:
+              Sand-DOS v3.1 features physical interactions calculated per frame. Here are the primary chemical reaction formulas:
             </p>
           </div>
 
-          {/* Reaction List */}
           <div className="space-y-2 overflow-y-auto max-h-96 pr-1">
             {reactions.map((r, idx) => (
               <div

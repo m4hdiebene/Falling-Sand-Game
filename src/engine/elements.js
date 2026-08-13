@@ -1,4 +1,4 @@
-// Sand-DOS v3.1 Element Registry & Reaction Definitions
+// Sand-DOS v3.1 Expanded Element Registry & Interaction Matrix
 
 export const ELEMENT_IDS = {
   EMPTY: 0,
@@ -22,6 +22,17 @@ export const ELEMENT_IDS = {
   CLONER: 18,
   VOID: 19,
   SPARK: 20,
+  // --- New Elements ---
+  GLASS: 21,
+  LASER: 22,
+  WAX: 23,
+  LIQUID_WAX: 24,
+  MITE: 25,
+  TNT: 26,
+  PORTAL_A: 27,
+  PORTAL_B: 28,
+  SPOUT_ACID: 29,
+  GAS_FUEL: 30,
 };
 
 export const ELEMENT_CATEGORIES = {
@@ -30,17 +41,17 @@ export const ELEMENT_CATEGORIES = {
   GASES: 'Gases',
   SOLIDS: 'Solids',
   EXPLOSIVES: 'Explosives',
+  LIFE_TECH: 'Life & Tech',
   SPECIAL: 'Special & Tools',
 };
 
-// Colors stored as RGBA integer arrays [r, g, b, a] or primary palette arrays for noise variation
 export const ELEMENTS = {
   [ELEMENT_IDS.EMPTY]: {
     id: ELEMENT_IDS.EMPTY,
     name: 'Air / Void',
     category: ELEMENT_CATEGORIES.SPECIAL,
     description: 'Empty space',
-    color: [12, 16, 32, 255], // Dark DOS blue-black canvas background
+    color: [12, 16, 32, 255],
     density: 0,
     type: 'empty',
     hotkey: '0',
@@ -50,7 +61,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.SAND,
     name: 'Sand',
     category: ELEMENT_CATEGORIES.POWDERS,
-    description: 'Heavy granular powder. Flows down and forms pyramids.',
+    description: 'Heavy granular powder. Cascades into natural dunes.',
     color: [225, 185, 95, 255],
     colorVariants: [
       [235, 195, 105, 255],
@@ -60,7 +71,6 @@ export const ELEMENTS = {
     ],
     density: 10,
     type: 'powder',
-    flammable: false,
     hotkey: '1',
   },
 
@@ -68,7 +78,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.WATER,
     name: 'Water',
     category: ELEMENT_CATEGORIES.LIQUIDS,
-    description: 'Fluid liquid. Spreads laterally, puts out fires, waters plants.',
+    description: 'Fluid liquid. Flowing lateral waves, extinguishes fire, grows plants.',
     color: [40, 140, 240, 220],
     colorVariants: [
       [35, 130, 230, 220],
@@ -77,9 +87,8 @@ export const ELEMENTS = {
       [60, 160, 255, 220],
     ],
     density: 5,
-    dispersion: 4,
+    dispersion: 5,
     type: 'liquid',
-    flammable: false,
     hotkey: '2',
   },
 
@@ -87,7 +96,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.OIL,
     name: 'Oil',
     category: ELEMENT_CATEGORIES.LIQUIDS,
-    description: 'Viscous petroleum. Floats on water, extremely flammable.',
+    description: 'Viscous crude oil. Floats on water, highly combustible.',
     color: [140, 100, 30, 240],
     colorVariants: [
       [130, 90, 25, 240],
@@ -98,7 +107,6 @@ export const ELEMENTS = {
     dispersion: 3,
     type: 'liquid',
     flammable: true,
-    burnRate: 0.8,
     hotkey: '3',
   },
 
@@ -106,18 +114,19 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.FIRE,
     name: 'Fire',
     category: ELEMENT_CATEGORIES.GASES,
-    description: 'Hot plasma. Consumes fuel, rises, flickers, produces smoke.',
-    color: [255, 80, 20, 255],
+    description: 'Hot plasma with intense light bloom. Ignites fuels, produces smoke.',
+    color: [255, 90, 20, 255],
     colorVariants: [
-      [255, 120, 10, 255],
+      [255, 140, 10, 255],
       [255, 60, 0, 255],
-      [255, 200, 40, 255],
-      [230, 40, 0, 255],
+      [255, 210, 50, 255],
+      [240, 30, 0, 255],
     ],
     density: -1,
+    glow: true,
     type: 'gas',
-    lifeMin: 12,
-    lifeMax: 28,
+    lifeMin: 14,
+    lifeMax: 30,
     hotkey: '4',
   },
 
@@ -125,18 +134,17 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.PLANT,
     name: 'Plant / Wood',
     category: ELEMENT_CATEGORIES.SOLIDS,
-    description: 'Organic solid. Combustible. Grows vines when hydrated by Water.',
+    description: 'Combustible organic material. Grows vines when absorbing water.',
     color: [45, 170, 60, 255],
     colorVariants: [
       [40, 155, 55, 255],
       [55, 185, 70, 255],
       [35, 140, 45, 255],
-      [75, 200, 85, 255], // Blossom / leaf accent
+      [80, 210, 90, 255],
     ],
     density: 100,
     type: 'solid',
     flammable: true,
-    burnRate: 0.3,
     hotkey: '5',
   },
 
@@ -144,7 +152,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.STONE,
     name: 'Stone Wall',
     category: ELEMENT_CATEGORIES.SOLIDS,
-    description: 'Indestructible barrier. Blockade against liquids and fire.',
+    description: 'Rigid barrier wall. Resistant to heat & liquids.',
     color: [140, 145, 155, 255],
     colorVariants: [
       [130, 135, 145, 255],
@@ -153,7 +161,6 @@ export const ELEMENTS = {
     ],
     density: 1000,
     type: 'solid',
-    flammable: false,
     hotkey: '6',
   },
 
@@ -161,7 +168,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.ACID,
     name: 'Acid',
     category: ELEMENT_CATEGORIES.LIQUIDS,
-    description: 'Corrosive chemical liquid. Melts solids & liquids into acid vapor.',
+    description: 'Neon green corrosive liquid. Melts solids & liquids into acid vapor.',
     color: [120, 255, 30, 240],
     colorVariants: [
       [110, 240, 20, 240],
@@ -169,9 +176,8 @@ export const ELEMENTS = {
       [100, 225, 10, 240],
     ],
     density: 6,
-    dispersion: 3,
+    dispersion: 4,
     type: 'liquid',
-    flammable: false,
     hotkey: '7',
   },
 
@@ -179,18 +185,18 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.LAVA,
     name: 'Lava',
     category: ELEMENT_CATEGORIES.LIQUIDS,
-    description: 'Heavy molten rock. Ignites surroundings, creates steam with water.',
+    description: 'Glowing molten magma. Melts solids, ignites fuels, solidifies with water.',
     color: [255, 60, 10, 255],
     colorVariants: [
       [240, 40, 0, 255],
       [255, 110, 20, 255],
       [220, 30, 0, 255],
-      [255, 160, 40, 255],
+      [255, 170, 50, 255],
     ],
     density: 8,
     dispersion: 2,
+    glow: true,
     type: 'liquid',
-    flammable: false,
     hotkey: '8',
   },
 
@@ -198,7 +204,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.GUNPOWDER,
     name: 'Gunpowder',
     category: ELEMENT_CATEGORIES.EXPLOSIVES,
-    description: 'Volatile explosive powder. Explodes rapidly when sparked.',
+    description: 'Volatile explosive powder. Rapid chain reaction explosion.',
     color: [75, 80, 85, 255],
     colorVariants: [
       [65, 70, 75, 255],
@@ -216,7 +222,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.C4,
     name: 'C4 Explosive',
     category: ELEMENT_CATEGORIES.EXPLOSIVES,
-    description: 'High-stability explosive block. Creates massive blast shockwave.',
+    description: 'High-yield explosive block. Detonates in a wide shockwave blast.',
     color: [210, 195, 150, 255],
     colorVariants: [
       [200, 185, 140, 255],
@@ -233,16 +239,14 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.ICE,
     name: 'Ice',
     category: ELEMENT_CATEGORIES.SOLIDS,
-    description: 'Cold solid. Freezes adjacent water, melts into water near heat.',
+    description: 'Solid frozen water. Freezes adjacent water, melts into water near heat.',
     color: [175, 225, 255, 220],
     colorVariants: [
       [160, 215, 250, 220],
       [190, 235, 255, 220],
-      [150, 205, 245, 220],
     ],
     density: 950,
     type: 'solid',
-    flammable: false,
     hotkey: 'I',
   },
 
@@ -250,7 +254,7 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.STEAM,
     name: 'Steam',
     category: ELEMENT_CATEGORIES.GASES,
-    description: 'Hot moisture vapor. Rises quickly, condenses back into Water.',
+    description: 'Hot vapor moisture. Rises rapidly and condenses into water droplets.',
     color: [210, 230, 245, 160],
     colorVariants: [
       [200, 220, 240, 150],
@@ -267,27 +271,171 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.SMOKE,
     name: 'Smoke',
     category: ELEMENT_CATEGORIES.GASES,
-    description: 'Combustion byproduct gas. Rises slowly and dissipates.',
+    description: 'Dark carbon smoke gas. Rises slowly and dissipates into vacuum.',
     color: [90, 95, 105, 180],
     colorVariants: [
       [75, 80, 90, 170],
       [105, 110, 120, 190],
-      [60, 65, 75, 160],
     ],
     density: -1,
     type: 'gas',
     lifeMin: 30,
-    lifeMax: 70,
+    lifeMax: 75,
     hotkey: 'M',
   },
 
+  // --- NEW ELEMENTS ---
+
+  [ELEMENT_IDS.GLASS]: {
+    id: ELEMENT_IDS.GLASS,
+    name: 'Glass Window',
+    category: ELEMENT_CATEGORIES.SOLIDS,
+    description: 'Translucent acid-proof & fireproof solid wall.',
+    color: [200, 235, 245, 180],
+    colorVariants: [
+      [180, 220, 235, 180],
+      [215, 245, 255, 190],
+    ],
+    density: 1000,
+    type: 'solid',
+    hotkey: 'G',
+  },
+
+  [ELEMENT_IDS.LASER]: {
+    id: ELEMENT_IDS.LASER,
+    name: 'Laser Emitter',
+    category: ELEMENT_CATEGORIES.LIFE_TECH,
+    description: 'High-energy beam tile. Emits intense hot laser ray that melts & ignites target.',
+    color: [255, 0, 100, 255],
+    colorVariants: [
+      [255, 50, 130, 255],
+      [230, 0, 80, 255],
+    ],
+    density: 1000,
+    glow: true,
+    type: 'solid',
+    hotkey: 'Z',
+  },
+
+  [ELEMENT_IDS.WAX]: {
+    id: ELEMENT_IDS.WAX,
+    name: 'Wax',
+    category: ELEMENT_CATEGORIES.SOLIDS,
+    description: 'Solid paraffin wax. Melts into Liquid Wax near heat, solidifies when cool.',
+    color: [240, 230, 190, 255],
+    colorVariants: [
+      [230, 220, 180, 255],
+      [245, 235, 200, 255],
+    ],
+    density: 850,
+    type: 'solid',
+    hotkey: 'X',
+  },
+
+  [ELEMENT_IDS.LIQUID_WAX]: {
+    id: ELEMENT_IDS.LIQUID_WAX,
+    name: 'Liquid Wax',
+    category: ELEMENT_CATEGORIES.LIQUIDS,
+    description: 'Molten liquid wax. Solidifies into Wax block when cooled.',
+    color: [230, 210, 150, 230],
+    colorVariants: [
+      [220, 200, 140, 230],
+      [240, 220, 160, 230],
+    ],
+    density: 4,
+    dispersion: 3,
+    type: 'liquid',
+    hotkey: 'Shift+X',
+  },
+
+  [ELEMENT_IDS.MITE]: {
+    id: ELEMENT_IDS.MITE,
+    name: 'Bug / Mite',
+    category: ELEMENT_CATEGORIES.LIFE_TECH,
+    description: 'Living bug pixel! Crawls along surfaces, eats plants to reproduce, dies in fire/acid.',
+    color: [255, 200, 0, 255],
+    colorVariants: [
+      [255, 220, 40, 255],
+      [230, 180, 0, 255],
+    ],
+    density: 15,
+    type: 'powder',
+    hotkey: 'B',
+  },
+
+  [ELEMENT_IDS.TNT]: {
+    id: ELEMENT_IDS.TNT,
+    name: 'TNT Dynamite',
+    category: ELEMENT_CATEGORIES.EXPLOSIVES,
+    description: 'Dynamite explosive block with fuse trigger.',
+    color: [220, 40, 30, 255],
+    colorVariants: [
+      [200, 30, 20, 255],
+      [240, 50, 40, 255],
+    ],
+    density: 600,
+    type: 'solid',
+    flammable: true,
+    explosive: true,
+    hotkey: 'T',
+  },
+
+  [ELEMENT_IDS.PORTAL_A]: {
+    id: ELEMENT_IDS.PORTAL_A,
+    name: 'Portal Blue (A)',
+    category: ELEMENT_CATEGORIES.LIFE_TECH,
+    description: 'Quantum portal entrance. Instantly teleports elements to Portal Orange (B)!',
+    color: [0, 150, 255, 255],
+    colorVariants: [
+      [30, 180, 255, 255],
+      [0, 120, 230, 255],
+    ],
+    density: 1000,
+    glow: true,
+    type: 'solid',
+    hotkey: 'U',
+  },
+
+  [ELEMENT_IDS.PORTAL_B]: {
+    id: ELEMENT_IDS.PORTAL_B,
+    name: 'Portal Orange (B)',
+    category: ELEMENT_CATEGORIES.LIFE_TECH,
+    description: 'Quantum portal exit. Teleports elements arriving from Portal Blue (A)!',
+    color: [255, 140, 0, 255],
+    colorVariants: [
+      [255, 170, 30, 255],
+      [230, 120, 0, 255],
+    ],
+    density: 1000,
+    glow: true,
+    type: 'solid',
+    hotkey: 'J',
+  },
+
+  [ELEMENT_IDS.GAS_FUEL]: {
+    id: ELEMENT_IDS.GAS_FUEL,
+    name: 'LPG Gas Fuel',
+    category: ELEMENT_CATEGORIES.GASES,
+    description: 'Invisible combustible gas fuel. Floats upwards, explodes into flame storm.',
+    color: [180, 100, 255, 140],
+    colorVariants: [
+      [160, 80, 240, 130],
+      [200, 120, 255, 150],
+    ],
+    density: -3,
+    type: 'gas',
+    lifeMin: 60,
+    lifeMax: 140,
+    hotkey: 'F',
+  },
+
+  // Spout Emitters
   [ELEMENT_IDS.SPOUT_SAND]: {
     id: ELEMENT_IDS.SPOUT_SAND,
     name: 'Sand Spout',
     category: ELEMENT_CATEGORIES.SPECIAL,
-    description: 'Infinite sand generator spout block.',
+    description: 'Infinite sand fountain block.',
     color: [225, 160, 40, 255],
-    colorVariants: [[210, 150, 30, 255]],
     density: 1000,
     type: 'solid',
     spawns: ELEMENT_IDS.SAND,
@@ -298,9 +446,8 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.SPOUT_WATER,
     name: 'Water Spout',
     category: ELEMENT_CATEGORIES.SPECIAL,
-    description: 'Infinite water fountain spout block.',
+    description: 'Infinite water fountain block.',
     color: [0, 180, 255, 255],
-    colorVariants: [[0, 165, 240, 255]],
     density: 1000,
     type: 'solid',
     spawns: ELEMENT_IDS.WATER,
@@ -313,7 +460,6 @@ export const ELEMENTS = {
     category: ELEMENT_CATEGORIES.SPECIAL,
     description: 'Infinite petroleum spout block.',
     color: [180, 130, 20, 255],
-    colorVariants: [[165, 115, 15, 255]],
     density: 1000,
     type: 'solid',
     spawns: ELEMENT_IDS.OIL,
@@ -326,23 +472,30 @@ export const ELEMENTS = {
     category: ELEMENT_CATEGORIES.SPECIAL,
     description: 'Magma volcano spout block.',
     color: [255, 40, 0, 255],
-    colorVariants: [[235, 30, 0, 255]],
     density: 1000,
     type: 'solid',
     spawns: ELEMENT_IDS.LAVA,
     hotkey: 'L',
   },
 
+  [ELEMENT_IDS.SPOUT_ACID]: {
+    id: ELEMENT_IDS.SPOUT_ACID,
+    name: 'Acid Spout',
+    category: ELEMENT_CATEGORIES.SPECIAL,
+    description: 'Corrosive acid generator block.',
+    color: [100, 230, 20, 255],
+    density: 1000,
+    type: 'solid',
+    spawns: ELEMENT_IDS.ACID,
+    hotkey: 'A',
+  },
+
   [ELEMENT_IDS.CLONER]: {
     id: ELEMENT_IDS.CLONER,
     name: 'Cloner',
     category: ELEMENT_CATEGORIES.SPECIAL,
-    description: 'Duplicates any element that falls on top of it!',
+    description: 'Duplicates any element touching its upper boundary!',
     color: [210, 40, 220, 255],
-    colorVariants: [
-      [230, 60, 240, 255],
-      [190, 20, 200, 255],
-    ],
     density: 1000,
     type: 'solid',
     hotkey: 'K',
@@ -352,33 +505,27 @@ export const ELEMENTS = {
     id: ELEMENT_IDS.VOID,
     name: 'Black Hole (Void)',
     category: ELEMENT_CATEGORIES.SPECIAL,
-    description: 'Consumes any element that touches its singularity.',
+    description: 'Consumes any element that touches its event horizon.',
     color: [40, 10, 60, 255],
-    colorVariants: [
-      [60, 15, 90, 255],
-      [25, 5, 40, 255],
-    ],
     density: 1000,
     type: 'solid',
-    hotkey: 'X',
+    hotkey: 'D',
   },
 
   [ELEMENT_IDS.SPARK]: {
     id: ELEMENT_IDS.SPARK,
     name: 'Spark',
     category: ELEMENT_CATEGORIES.SPECIAL,
-    description: 'Transient high-heat ember spark particle.',
+    description: 'Burning ember spark particle.',
     color: [255, 255, 180, 255],
-    colorVariants: [[255, 240, 120, 255]],
     density: -1,
+    glow: true,
     type: 'gas',
     lifeMin: 3,
     lifeMax: 10,
-    hotkey: '*',
   },
 };
 
-// Helper function to pick color variant or base color
 export function getElementColor(id, variantSeed = 0) {
   const elem = ELEMENTS[id] || ELEMENTS[ELEMENT_IDS.EMPTY];
   if (elem.colorVariants && elem.colorVariants.length > 0) {

@@ -1,7 +1,7 @@
-// Sand-DOS v3.1 Help & Manual Modal
+// Sand-DOS v3.1 Expanded Help & Manual Modal
 import React from 'react';
 import { DosWindow } from './DosWindow';
-import { HelpCircle, Keyboard, MousePointer, Info } from 'lucide-react';
+import { HelpCircle, Keyboard } from 'lucide-react';
 
 export const HelpModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
@@ -17,6 +17,13 @@ export const HelpModal = ({ isOpen, onClose }) => {
     { key: '7', action: 'Select Acid' },
     { key: '8', action: 'Select Lava' },
     { key: '9', action: 'Select Gunpowder' },
+    { key: 'G', action: 'Select Glass Window' },
+    { key: 'Z', action: 'Select Laser Emitter' },
+    { key: 'B', action: 'Select Bug / Mite' },
+    { key: 'T', action: 'Select TNT Dynamite' },
+    { key: 'U', action: 'Select Portal Blue (A)' },
+    { key: 'J', action: 'Select Portal Orange (B)' },
+    { key: 'F', action: 'Select LPG Fuel Gas' },
     { key: 'C', action: 'Clear All Particles' },
     { key: 'SPACE', action: 'Pause / Resume Simulation' },
     { key: 'F1', action: 'Help & Controls Manual' },
@@ -35,17 +42,15 @@ export const HelpModal = ({ isOpen, onClose }) => {
         headerBg="bg-[#0000AA]"
       >
         <div className="space-y-3">
-          {/* Header */}
           <div className="border border-black bg-[#E0E0E0] p-2 text-xs text-black space-y-1">
             <span className="font-bold text-[#0000AA] flex items-center gap-1.5">
               <HelpCircle className="h-4 w-4" /> DOS CELLULAR AUTOMATA ENGINE CONTROLS
             </span>
             <p className="text-[11px] text-[#444444]">
-              Click or touch and drag on the canvas to paint elements. Use brush size sliders and gravity tools on the left palette sidebar.
+              Click or touch and drag on the canvas to paint elements. Switch tools between Pen, Straight Line, and Box Fill modes on top toolbar.
             </p>
           </div>
 
-          {/* Hotkeys Table */}
           <div className="border-2 border-[#555555] bg-[#FFFFFF] p-2 text-xs text-black">
             <h4 className="font-bold text-[#0000AA] mb-1.5 border-b border-[#AAAAAA] pb-0.5 flex items-center gap-1">
               <Keyboard className="h-4 w-4" /> KEYBOARD SHORTCUTS REFERENCE
