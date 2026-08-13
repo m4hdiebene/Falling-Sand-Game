@@ -168,22 +168,32 @@ export class SandEngine {
         }
 
         if (elementId === ELEMENT_IDS.EMPTY) {
-          this.set(x, y, ELEMENT_IDS.EMPTY, 0);
-          painted++;
+          if (currentElem !== ELEMENT_IDS.EMPTY) {
+            this.set(x, y, ELEMENT_IDS.EMPTY, 0);
+            painted++;
+          }
           continue;
         }
 
-        if (
-          currentElem === ELEMENT_IDS.EMPTY ||
-          ELEMENTS[elementId]?.type === 'solid' ||
-          currentElem !== elementId ||
-          replaceTarget !== null
-        ) {
+        let canPaint = false;
+        const brushDef = ELEMENTS[elementId];
+        const currentDef = ELEMENTS[currentElem];
+
+        if (replaceTarget !== null) {
+          canPaint = true;
+        } else if (currentElem === ELEMENT_IDS.EMPTY || currentDef?.type === 'gas') {
+          // Anyone can paint over empty space or gases (smoke, steam, fire)
+          canPaint = true;
+        } else if (brushDef?.type === 'solid' && currentDef?.type !== 'solid') {
+          // Solids can overwrite liquids and powders
+          canPaint = true;
+        }
+
+        if (canPaint && currentElem !== elementId) {
           let initialLife = 0;
-          const elemDef = ELEMENTS[elementId];
-          if (elemDef?.lifeMin) {
+          if (brushDef?.lifeMin) {
             initialLife = Math.floor(
-              elemDef.lifeMin + Math.random() * (elemDef.lifeMax - elemDef.lifeMin)
+              brushDef.lifeMin + Math.random() * (brushDef.lifeMax - brushDef.lifeMin)
             );
           }
 
