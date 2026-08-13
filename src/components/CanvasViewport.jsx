@@ -1,4 +1,4 @@
-// Sand-DOS v3.1 Ultra-Smooth Canvas Viewport with Catmull-Rom Splines & Exact Coords
+// Sand-DOS v3.1 Comprehensive Viewport: Eyedropper, Replacement Paint, Save/Load World & Controls
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Play,
@@ -8,29 +8,36 @@ import {
   Brush,
   Minus,
   Square,
-  Sparkles,
+  Pipette,
+  Replace,
+  Download,
+  Upload,
 } from 'lucide-react';
+import { ELEMENTS, ELEMENT_IDS } from '../engine/elements';
 import { pcSpeaker } from '../audio/pcSpeaker';
 
 export const CanvasViewport = ({
   engine,
   selectedElement,
+  setSelectedElement,
   brushSize,
   brushShape,
   gravityDir,
   windForce,
+  toolMode,
+  setToolMode,
+  replaceTarget,
   onUpdateStats,
 }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const [isPaused, setIsPaused] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [toolMode, setToolMode] = useState('freehand');
   const [startPoint, setStartPoint] = useState(null);
 
-  // Buffer of last points for Catmull-Rom spline curve smoothing
   const strokePointsRef = useRef([]);
 
   // Sync physics
@@ -48,7 +55,7 @@ export const CanvasViewport = ({
     }
   }, [engine]);
 
-  // Main Animation Render Loop
+  // Main Render Loop
   useEffect(() => {
     if (!engine) return;
 
@@ -73,7 +80,6 @@ export const CanvasViewport = ({
 
       engine.render();
 
-      // Screen shake animation
       if (engine.shakeAmount > 0) {
         if (canvasRef.current) {
           const offsetX = (Math.random() - 0.5) * engine.shakeAmount * 1.5;
@@ -100,7 +106,7 @@ export const CanvasViewport = ({
     return () => cancelAnimationFrame(animId);
   }, [engine, isPaused, speedMultiplier, onUpdateStats]);
 
-  // --- Exact Coordinate Calculation (Accounting for object-contain Letterbox) ---
+  // Coordinate Conversion (Accounting for object-contain letterboxing)
   const getGridCoords = useCallback(
     (e) => {
       if (!canvasRef.current || !engine) return null;
@@ -111,7 +117,6 @@ export const CanvasViewport = ({
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-      // Calculate actual content area inside object-contain letterboxing
       const cw = engine.width;
       const ch = engine.height;
       const rw = rect.width;
@@ -146,12 +151,10 @@ export const CanvasViewport = ({
     [engine]
   );
 
-  // --- Catmull-Rom Spline Curve Interpolation for Ultra-Smooth Curves ---
+  // Catmull-Rom Spline Curve Stepping
   const drawSplineSegment = useCallback(
     (p0, p1, p2, p3) => {
       if (!engine) return;
-
-      // Catmull-Rom spline formula
       const steps = Math.ceil(Math.hypot(p2.rawX - p1.rawX, p2.rawY - p1.rawY) * 2.5);
       const numSteps = Math.max(steps, 4);
 
@@ -174,13 +177,19 @@ export const CanvasViewport = ({
             (2 * p0.rawY - 5 * p1.rawY + 4 * p2.rawY - p3.rawY) * t2 +
             (-p0.rawY + 3 * p1.rawY - 3 * p2.rawY + p3.rawY) * t3);
 
-        engine.drawBrush(Math.floor(x), Math.floor(y), selectedElement, brushSize, brushShape);
+        engine.drawBrush(
+          Math.floor(x),
+          Math.floor(y),
+          selectedElement,
+          brushSize,
+          brushShape,
+          toolMode === 'replace' ? replaceTarget : null
+        );
       }
     },
-    [engine, selectedElement, brushSize, brushShape]
+    [engine, selectedElement, brushSize, brushShape, toolMode, replaceTarget]
   );
 
-  // Straight line interpolation
   const drawDenseLine = useCallback(
     (x0, y0, x1, y1) => {
       if (!engine) return;
@@ -193,34 +202,74 @@ export const CanvasViewport = ({
         const t = i / stepCount;
         const currX = Math.floor(x0 + dx * t);
         const currY = Math.floor(y0 + dy * t);
-        engine.drawBrush(currX, currY, selectedElement, brushSize, brushShape);
+        engine.drawBrush(
+          currX,
+          currY,
+          selectedElement,
+          brushSize,
+          brushShape,
+          toolMode === 'replace' ? replaceTarget : null
+        );
       }
     },
-    [engine, selectedElement, brushSize, brushShape]
+    [engine, selectedElement, brushSize, brushShape, toolMode, replaceTarget]
   );
 
   const handlePointerDown = (e) => {
     const coords = getGridCoords(e);
-    if (!coords) return;
+    if (!coords || !engine) return;
+
+    // Eyedropper Inspector Tool
+    if (toolMode === 'eyedropper') {
+      const pickedId = engine.get(coords.x, coords.y);
+      if (pickedId !== ELEMENT_IDS.EMPTY) {
+        pcSpeaker.playClick();
+        setSelectedElement(pickedId);
+        setToolMode('freehand');
+      }
+      return;
+    }
+
+    // Push Undo State before starting new stroke
+    engine.pushUndoState();
 
     setIsDrawing(true);
     setStartPoint(coords);
     strokePointsRef.current = [coords, coords, coords];
 
-    if (toolMode === 'freehand') {
-      engine.drawBrush(coords.x, coords.y, selectedElement, brushSize, brushShape);
+    if (toolMode === 'freehand' || toolMode === 'replace') {
+      engine.drawBrush(
+        coords.x,
+        coords.y,
+        selectedElement,
+        brushSize,
+        brushShape,
+        toolMode === 'replace' ? replaceTarget : null
+      );
     }
   };
 
   const handlePointerMove = (e) => {
     const coords = getGridCoords(e);
-    if (!coords) return;
+    if (!coords || !engine) return;
+
+    // Inspect hovered element, temperature, and charge
+    const idx = engine.getIndex(coords.x, coords.y);
+    const elemId = engine.get(coords.x, coords.y);
+    const tempVal = engine.temp[idx];
+    const chargeVal = engine.charge[idx];
 
     if (onUpdateStats) {
-      onUpdateStats({ cursorX: coords.x, cursorY: coords.y });
+      onUpdateStats({
+        cursorX: coords.x,
+        cursorY: coords.y,
+        hoveredElem: ELEMENTS[elemId]?.name || 'Air',
+        temp: tempVal,
+        charge: chargeVal,
+      });
     }
 
-    if (isDrawing && toolMode === 'freehand') {
+    if (isDrawing && (toolMode === 'freehand' || toolMode === 'replace')) {
       const pts = strokePointsRef.current;
       pts.push(coords);
 
@@ -239,7 +288,7 @@ export const CanvasViewport = ({
   };
 
   const handlePointerUp = (e) => {
-    if (isDrawing && toolMode !== 'freehand') {
+    if (isDrawing && toolMode !== 'freehand' && toolMode !== 'replace' && toolMode !== 'eyedropper') {
       const endCoords = getGridCoords(e);
       if (toolMode === 'line' && startPoint && endCoords) {
         drawDenseLine(startPoint.x, startPoint.y, endCoords.x, endCoords.y);
@@ -260,6 +309,47 @@ export const CanvasViewport = ({
     setIsDrawing(false);
     setStartPoint(null);
     strokePointsRef.current = [];
+  };
+
+  // Export World to JSON File
+  const handleExportWorld = () => {
+    if (!engine) return;
+    pcSpeaker.playClick();
+    const data = {
+      width: engine.width,
+      height: engine.height,
+      grid: Array.from(engine.grid),
+      temp: Array.from(engine.temp),
+    };
+    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `sand-dos-world-${Date.now()}.json`;
+    link.click();
+  };
+
+  // Import World from JSON File
+  const handleImportWorld = (e) => {
+    const file = e.target.files[0];
+    if (!file || !engine) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (data.grid && data.grid.length === engine.size) {
+          engine.pushUndoState();
+          engine.grid.set(data.grid);
+          if (data.temp) engine.temp.set(data.temp);
+          engine.render();
+          pcSpeaker.playClick();
+        }
+      } catch (err) {
+        console.error('Failed to load world file', err);
+      }
+    };
+    reader.readAsText(file);
   };
 
   const handleSnapshot = () => {
@@ -329,7 +419,7 @@ export const CanvasViewport = ({
           </div>
         </div>
 
-        {/* Tool Mode Buttons */}
+        {/* Tool Mode & World Actions */}
         <div className="flex items-center space-x-1 text-xs">
           <button
             onClick={() => {
@@ -339,9 +429,9 @@ export const CanvasViewport = ({
             className={`px-2 py-0.5 border flex items-center gap-1 font-bold ${
               toolMode === 'freehand' ? 'bg-[#00AAAA] text-black' : 'bg-[#555555] text-white'
             }`}
-            title="Freehand Pen Tool"
+            title="Smooth Pen"
           >
-            <Brush className="h-3 w-3" /> Smooth Pen
+            <Brush className="h-3 w-3" /> Pen
           </button>
 
           <button
@@ -352,7 +442,7 @@ export const CanvasViewport = ({
             className={`px-2 py-0.5 border flex items-center gap-1 font-bold ${
               toolMode === 'line' ? 'bg-[#00AAAA] text-black' : 'bg-[#555555] text-white'
             }`}
-            title="Straight Line Tool"
+            title="Straight Line"
           >
             <Minus className="h-3 w-3" /> Line
           </button>
@@ -365,10 +455,36 @@ export const CanvasViewport = ({
             className={`px-2 py-0.5 border flex items-center gap-1 font-bold ${
               toolMode === 'box' ? 'bg-[#00AAAA] text-black' : 'bg-[#555555] text-white'
             }`}
-            title="Box Fill Tool"
+            title="Box Fill"
           >
             <Square className="h-3 w-3" /> Box
           </button>
+
+          {/* Save / Load JSON World Buttons */}
+          <button
+            onClick={handleExportWorld}
+            className="flex items-center space-x-1 border border-white bg-[#0000AA] px-1.5 py-0.5 text-xs text-white font-bold hover:bg-[#FFFF55] hover:text-black"
+            title="Save Sandbox World to JSON File"
+          >
+            <Download className="h-3 w-3" />
+            <span className="hidden md:inline">SAVE</span>
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center space-x-1 border border-white bg-[#0000AA] px-1.5 py-0.5 text-xs text-white font-bold hover:bg-[#FFFF55] hover:text-black"
+            title="Load Sandbox World from JSON File"
+          >
+            <Upload className="h-3 w-3" />
+            <span className="hidden md:inline">LOAD</span>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportWorld}
+            className="hidden"
+          />
 
           <button
             onClick={handleSnapshot}
@@ -376,7 +492,7 @@ export const CanvasViewport = ({
             title="Save PNG Image Snapshot"
           >
             <Camera className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">SNAPSHOT</span>
+            <span className="hidden sm:inline">PNG</span>
           </button>
         </div>
       </div>

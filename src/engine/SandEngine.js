@@ -1,4 +1,4 @@
-// Sand-DOS v3.1 Enhanced Canvas CA Engine with Bloom, Portals & Fluid Physics
+// Sand-DOS v3.1 Comprehensive Sandbox Engine: Electricity, Thermal Diffusion, Undo/Redo & Physics
 import { ELEMENT_IDS, ELEMENTS, getElementColor } from './elements';
 
 export class SandEngine {
@@ -10,6 +10,8 @@ export class SandEngine {
     // Primary grid buffers
     this.grid = new Uint8Array(this.size);
     this.life = new Uint8Array(this.size);
+    this.temp = new Int16Array(this.size); // Temperature in °C per cell
+    this.charge = new Uint8Array(this.size); // Electrical charge level (0-10)
     this.clonedType = new Uint8Array(this.size);
     this.updated = new Uint8Array(this.size);
 
@@ -19,13 +21,19 @@ export class SandEngine {
     this.imgData = null;
     this.pixelBuffer32 = null;
 
-    // Simulation state & controls
+    // Simulation state & options
     this.tickCount = 0;
     this.gravity = { x: 0, y: 1 };
     this.wind = 0;
     this.particleCount = 0;
     this.audioCallback = null;
     this.shakeAmount = 0;
+    this.showHeatMap = false; // Toggle thermal view mode (F5)
+
+    // Undo / Redo History Stacks
+    this.undoStack = [];
+    this.redoStack = [];
+    this.maxHistory = 12;
 
     this.initGrid();
   }
@@ -33,6 +41,8 @@ export class SandEngine {
   initGrid() {
     this.grid.fill(ELEMENT_IDS.EMPTY);
     this.life.fill(0);
+    this.temp.fill(20); // Room temp 20°C
+    this.charge.fill(0);
     this.clonedType.fill(0);
     this.updated.fill(0);
   }
@@ -52,6 +62,53 @@ export class SandEngine {
     this.audioCallback = cb;
   }
 
+  // --- Undo & Redo System ---
+  pushUndoState() {
+    if (this.undoStack.length >= this.maxHistory) {
+      this.undoStack.shift();
+    }
+    this.undoStack.push({
+      grid: new Uint8Array(this.grid),
+      life: new Uint8Array(this.life),
+      temp: new Int16Array(this.temp),
+    });
+    this.redoStack = []; // Clear redo stack on new edit action
+  }
+
+  undo() {
+    if (this.undoStack.length === 0) return false;
+    const currentState = {
+      grid: new Uint8Array(this.grid),
+      life: new Uint8Array(this.life),
+      temp: new Int16Array(this.temp),
+    };
+    this.redoStack.push(currentState);
+
+    const previousState = this.undoStack.pop();
+    this.grid.set(previousState.grid);
+    this.life.set(previousState.life);
+    this.temp.set(previousState.temp);
+    this.render();
+    return true;
+  }
+
+  redo() {
+    if (this.redoStack.length === 0) return false;
+    const currentState = {
+      grid: new Uint8Array(this.grid),
+      life: new Uint8Array(this.life),
+      temp: new Int16Array(this.temp),
+    };
+    this.undoStack.push(currentState);
+
+    const nextState = this.redoStack.pop();
+    this.grid.set(nextState.grid);
+    this.life.set(nextState.life);
+    this.temp.set(nextState.temp);
+    this.render();
+    return true;
+  }
+
   getIndex(x, y) {
     if (x < 0 || x >= this.width || y < 0 || y >= this.height) return -1;
     return y * this.width + x;
@@ -63,20 +120,25 @@ export class SandEngine {
     return this.grid[idx];
   }
 
-  set(x, y, id, lifeVal = 0) {
+  set(x, y, id, lifeVal = 0, defaultTemp = null) {
     const idx = this.getIndex(x, y);
     if (idx === -1) return;
     this.grid[idx] = id;
     this.life[idx] = lifeVal;
+
+    const elemDef = ELEMENTS[id];
+    this.temp[idx] = defaultTemp !== null ? defaultTemp : (elemDef?.temp ?? 20);
+    this.charge[idx] = 0;
   }
 
   clear() {
+    this.pushUndoState();
     this.initGrid();
     this.render();
   }
 
-  // --- Perfect Symmetrical Round Brush Stamp ---
-  drawBrush(centerX, centerY, elementId, size = 5, shape = 'circle') {
+  // --- Smooth Symmetrical Brush Paint ---
+  drawBrush(centerX, centerY, elementId, size = 5, shape = 'circle', replaceTarget = null) {
     const radius = size / 2;
     const rSq = radius * radius;
     const rInt = Math.ceil(radius);
@@ -90,7 +152,6 @@ export class SandEngine {
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) continue;
 
         if (shape === 'circle') {
-          // Pixel center offset for smooth round symmetry
           const distSq = (dx + 0.2) * (dx + 0.2) + (dy + 0.2) * (dy + 0.2);
           if (distSq > rSq + 0.3) continue;
         }
@@ -101,6 +162,11 @@ export class SandEngine {
 
         const currentElem = this.get(x, y);
 
+        // Replace Paint Mode: only paint over specific target element
+        if (replaceTarget !== null && currentElem !== replaceTarget) {
+          continue;
+        }
+
         if (elementId === ELEMENT_IDS.EMPTY) {
           this.set(x, y, ELEMENT_IDS.EMPTY, 0);
           painted++;
@@ -110,7 +176,8 @@ export class SandEngine {
         if (
           currentElem === ELEMENT_IDS.EMPTY ||
           ELEMENTS[elementId]?.type === 'solid' ||
-          currentElem !== elementId
+          currentElem !== elementId ||
+          replaceTarget !== null
         ) {
           let initialLife = 0;
           const elemDef = ELEMENTS[elementId];
@@ -139,11 +206,18 @@ export class SandEngine {
     }
   }
 
+  // --- Main Engine Simulation Loop ---
   step() {
     this.tickCount++;
     this.updated.fill(0);
     let count = 0;
     const isEvenTick = this.tickCount % 2 === 0;
+
+    // 1. Electrical Current Propagation Pass
+    this.updateElectricalGrid();
+
+    // 2. Thermal Diffusion Pass
+    this.updateThermalGrid();
 
     const gravY = this.gravity.y;
     const yStart = gravY >= 0 ? this.height - 1 : 0;
@@ -187,22 +261,96 @@ export class SandEngine {
     this.particleCount = count;
   }
 
-  // --- Element Physics & Reactions ---
+  // --- Electricity & Conductor Physics ---
+  updateElectricalGrid() {
+    // Decay charge levels each tick
+    for (let i = 0; i < this.size; i++) {
+      if (this.charge[i] > 0) this.charge[i]--;
+    }
+
+    // Battery generator outputs continuous current
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const idx = y * this.width + x;
+        const id = this.grid[idx];
+
+        if (id === ELEMENT_IDS.BATTERY || id === ELEMENT_IDS.SWITCH_ON) {
+          this.charge[idx] = 10;
+        }
+
+        // Conductive charge propagation to adjacent neighbors
+        if (this.charge[idx] > 1) {
+          const neighbors = [
+            [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+          ];
+          for (const [nx, ny] of neighbors) {
+            const nIdx = this.getIndex(nx, ny);
+            if (nIdx !== -1) {
+              const targetId = this.grid[nIdx];
+              const targetDef = ELEMENTS[targetId];
+
+              if (targetDef && targetDef.conductive && this.charge[nIdx] < this.charge[idx] - 1) {
+                this.charge[nIdx] = this.charge[idx] - 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // --- Thermal Diffusion & State Transformations ---
+  updateThermalGrid() {
+    for (let y = 0; y < this.height; y++) {
+      for (let x = 0; x < this.width; x++) {
+        const idx = y * this.width + x;
+        const id = this.grid[idx];
+        const currentTemp = this.temp[idx];
+
+        // Component thermal outputs
+        if (id === ELEMENT_IDS.HEATER && this.charge[idx] > 0) {
+          this.temp[idx] = 500;
+        } else if (id === ELEMENT_IDS.COOLER && this.charge[idx] > 0) {
+          this.temp[idx] = -50;
+        }
+
+        // State Transformations Based on Temperature Thresholds
+        if (id === ELEMENT_IDS.WATER) {
+          if (currentTemp <= 0) this.set(x, y, ELEMENT_IDS.ICE, 0, currentTemp);
+          else if (currentTemp >= 100) this.set(x, y, ELEMENT_IDS.STEAM, 60, currentTemp);
+        } else if (id === ELEMENT_IDS.ICE) {
+          if (currentTemp > 0) this.set(x, y, ELEMENT_IDS.WATER, 0, currentTemp);
+        } else if (id === ELEMENT_IDS.SAND && currentTemp >= 1400) {
+          this.set(x, y, ELEMENT_IDS.GLASS, 0, currentTemp);
+        } else if (id === ELEMENT_IDS.STONE && currentTemp >= 1100) {
+          this.set(x, y, ELEMENT_IDS.LAVA, 0, currentTemp);
+        } else if (id === ELEMENT_IDS.LAVA && currentTemp <= 700) {
+          this.set(x, y, ELEMENT_IDS.STONE, 0, currentTemp);
+        } else if (id === ELEMENT_IDS.MUD && currentTemp >= 120) {
+          this.set(x, y, ELEMENT_IDS.STONE, 0, currentTemp);
+        } else if (id === ELEMENT_IDS.PLANT && currentTemp >= 250) {
+          this.set(x, y, ELEMENT_IDS.FIRE, 20, currentTemp);
+        } else if (id === ELEMENT_IDS.CEMENT) {
+          this.life[idx]++;
+          if (this.life[idx] > 120) this.set(x, y, ELEMENT_IDS.CONCRETE, 0, currentTemp);
+        }
+      }
+    }
+  }
+
+  // --- Element Movements ---
 
   updatePowder(x, y, idx, id) {
     const gy = this.gravity.y;
     const targetY = y + gy;
     const targetX = x + this.wind;
 
-    // 1. Direct fall down
     if (this.tryMove(x, y, targetX, targetY, id)) return;
 
-    // 2. Diagonal cascade
     const dir = Math.random() < 0.5 ? 1 : -1;
     if (this.tryMove(x, y, x + dir, targetY, id)) return;
     if (this.tryMove(x, y, x - dir, targetY, id)) return;
 
-    // 3. Sinking in lighter liquids
     const belowId = this.get(x, targetY);
     const belowDef = ELEMENTS[belowId];
     if (belowDef && belowDef.type === 'liquid' && belowDef.density < ELEMENTS[id].density) {
@@ -212,6 +360,10 @@ export class SandEngine {
 
     if (id === ELEMENT_IDS.MITE) {
       this.runMite(x, y);
+    } else if (id === ELEMENT_IDS.ANTIMATTER) {
+      this.runAntimatter(x, y);
+    } else if (id === ELEMENT_IDS.SALT) {
+      this.runSalt(x, y);
     }
   }
 
@@ -219,22 +371,18 @@ export class SandEngine {
     const gy = this.gravity.y;
     const targetY = y + gy;
 
-    // 1. Fall down
     if (this.tryMove(x, y, x, targetY, id)) return;
 
-    // 2. Diagonal fall
     const dir = Math.random() < 0.5 ? 1 : -1;
     if (this.tryMove(x, y, x + dir, targetY, id)) return;
     if (this.tryMove(x, y, x - dir, targetY, id)) return;
 
-    // 3. Sideways dispersion flow
     for (let i = dispersion; i >= 1; i--) {
       const spreadDir = Math.random() < 0.5 ? i : -i;
       if (this.tryMove(x, y, x + spreadDir, y, id)) return;
       if (this.tryMove(x, y, x - spreadDir, y, id)) return;
     }
 
-    // Liquid Density floating/sinking swap
     const belowId = this.get(x, targetY);
     const belowDef = ELEMENTS[belowId];
     if (belowDef && belowDef.type === 'liquid' && belowDef.density < ELEMENTS[id].density) {
@@ -247,9 +395,7 @@ export class SandEngine {
     } else if (id === ELEMENT_IDS.LAVA) {
       this.reactLava(x, y);
     } else if (id === ELEMENT_IDS.LIQUID_WAX) {
-      if (Math.random() < 0.05) {
-        this.set(x, y, ELEMENT_IDS.WAX, 0);
-      }
+      if (this.temp[idx] < 40) this.set(x, y, ELEMENT_IDS.WAX, 0);
     }
   }
 
@@ -300,9 +446,71 @@ export class SandEngine {
     else if (id === ELEMENT_IDS.LASER) this.runLaser(x, y);
     else if (id === ELEMENT_IDS.PORTAL_A) this.runPortal(x, y, ELEMENT_IDS.PORTAL_B);
     else if (id === ELEMENT_IDS.TNT) this.runTNT(x, y, idx);
+    else if (id === ELEMENT_IDS.IRON) this.runIron(x, y);
+    else if (id === ELEMENT_IDS.FUNGUS) this.runFungus(x, y);
   }
 
-  // --- Actions & Reactions ---
+  // --- Specialized Automata Rules ---
+
+  runAntimatter(x, y) {
+    const neighbors = [
+      [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+    ];
+    for (const [nx, ny] of neighbors) {
+      const targetId = this.get(nx, ny);
+      if (targetId !== ELEMENT_IDS.EMPTY && targetId !== ELEMENT_IDS.ANTIMATTER) {
+        this.set(nx, ny, ELEMENT_IDS.SPARK_ELEC, 3);
+        this.set(x, y, ELEMENT_IDS.EMPTY, 0);
+        if (this.audioCallback) this.audioCallback('bigExplosion');
+        return;
+      }
+    }
+  }
+
+  runSalt(x, y) {
+    const neighbors = [
+      [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+    ];
+    for (const [nx, ny] of neighbors) {
+      if (this.get(nx, ny) === ELEMENT_IDS.WATER) {
+        this.set(nx, ny, ELEMENT_IDS.SALTWATER, 0);
+        this.set(x, y, ELEMENT_IDS.EMPTY, 0);
+        return;
+      }
+    }
+  }
+
+  runIron(x, y) {
+    // Iron rusts when exposed to Water & Acid
+    const neighbors = [
+      [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+    ];
+    for (const [nx, ny] of neighbors) {
+      const targetId = this.get(nx, ny);
+      if (targetId === ELEMENT_IDS.WATER || targetId === ELEMENT_IDS.ACID || targetId === ELEMENT_IDS.SALTWATER) {
+        if (Math.random() < 0.02) {
+          this.set(x, y, ELEMENT_IDS.RUST, 0);
+          return;
+        }
+      }
+    }
+  }
+
+  runFungus(x, y) {
+    // Spreads across Plant / Wood / Wax
+    if (Math.random() < 0.08) {
+      const neighbors = [
+        [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
+      ];
+      for (const [nx, ny] of neighbors) {
+        const targetId = this.get(nx, ny);
+        if (targetId === ELEMENT_IDS.PLANT || targetId === ELEMENT_IDS.WAX) {
+          this.set(nx, ny, ELEMENT_IDS.FUNGUS, 0);
+          break;
+        }
+      }
+    }
+  }
 
   runLaser(x, y) {
     let lx = x;
@@ -374,7 +582,7 @@ export class SandEngine {
 
     for (const [nx, ny] of neighbors) {
       const targetId = this.get(nx, ny);
-      if (targetId === ELEMENT_IDS.PLANT) {
+      if (targetId === ELEMENT_IDS.PLANT || targetId === ELEMENT_IDS.FUNGUS) {
         this.set(nx, ny, ELEMENT_IDS.MITE, 0);
         if (this.audioCallback && Math.random() < 0.1) this.audioCallback('click');
         return;
@@ -518,7 +726,8 @@ export class SandEngine {
         targetId !== ELEMENT_IDS.EMPTY &&
         targetId !== ELEMENT_IDS.ACID &&
         targetId !== ELEMENT_IDS.VOID &&
-        targetId !== ELEMENT_IDS.GLASS
+        targetId !== ELEMENT_IDS.GLASS &&
+        targetId !== ELEMENT_IDS.CONCRETE
       ) {
         this.set(nx, ny, ELEMENT_IDS.SMOKE, 30);
         this.set(x, y, ELEMENT_IDS.EMPTY, 0);
@@ -571,7 +780,7 @@ export class SandEngine {
 
         if (distSq <= rSq) {
           const currentId = this.get(x, y);
-          if (currentId === ELEMENT_IDS.VOID) continue;
+          if (currentId === ELEMENT_IDS.VOID || currentId === ELEMENT_IDS.CONCRETE) continue;
 
           if (currentId === ELEMENT_IDS.GLASS && distSq <= rSq * 0.7) {
             this.set(x, y, ELEMENT_IDS.SAND, 0);
@@ -598,12 +807,15 @@ export class SandEngine {
 
     const id1 = this.grid[idx1];
     const life1 = this.life[idx1];
+    const temp1 = this.temp[idx1];
 
     this.grid[idx1] = this.grid[idx2];
     this.life[idx1] = this.life[idx2];
+    this.temp[idx1] = this.temp[idx2];
 
     this.grid[idx2] = id1;
     this.life[idx2] = life1;
+    this.temp[idx2] = temp1;
 
     this.updated[idx2] = 1;
   }
@@ -617,9 +829,11 @@ export class SandEngine {
 
       this.grid[targetIdx] = id;
       this.life[targetIdx] = this.life[srcIdx];
+      this.temp[targetIdx] = this.temp[srcIdx];
 
       this.grid[srcIdx] = ELEMENT_IDS.EMPTY;
       this.life[srcIdx] = 0;
+      this.temp[srcIdx] = 20;
 
       this.updated[targetIdx] = 1;
       return true;
@@ -628,6 +842,7 @@ export class SandEngine {
     return false;
   }
 
+  // --- Rendering Loop (Supports Heat Map View Mode) ---
   render() {
     if (!this.pixelBuffer32) return;
 
@@ -636,35 +851,61 @@ export class SandEngine {
 
     for (let i = 0; i < len; i++) {
       const id = this.grid[i];
+
+      // Thermal Heat Map Mode (F5)
+      if (this.showHeatMap && id !== ELEMENT_IDS.EMPTY) {
+        const temperature = this.temp[i];
+        // Blue (cold) -> Green (room) -> Red (hot) -> Yellow (extreme)
+        let r = 0, g = 0, b = 0;
+        if (temperature < 0) {
+          b = Math.min(255, 150 + Math.abs(temperature) * 2);
+        } else if (temperature < 100) {
+          g = Math.min(255, 100 + temperature * 1.5);
+          b = Math.max(0, 100 - temperature);
+        } else {
+          r = Math.min(255, 150 + (temperature - 100) * 0.2);
+          g = Math.min(255, (temperature - 100) * 0.1);
+        }
+        buf[i] = (255 << 24) | (b << 16) | (g << 8) | r;
+        continue;
+      }
+
       const color = getElementColor(id, i);
 
-      buf[i] =
-        (color[3] << 24) |
-        (color[2] << 16) |
-        (color[1] << 8) |
-        color[0];
+      // Flash active electric charge in bright yellow
+      if (this.charge[i] > 0) {
+        buf[i] = (255 << 24) | (100 << 16) | (255 << 8) | 255;
+      } else {
+        buf[i] =
+          (color[3] << 24) |
+          (color[2] << 16) |
+          (color[1] << 8) |
+          color[0];
+      }
     }
 
     // Bloom Pass
-    for (let y = 1; y < this.height - 1; y++) {
-      for (let x = 1; x < this.width - 1; x++) {
-        const idx = y * this.width + x;
-        const id = this.grid[idx];
-        const elemDef = ELEMENTS[id];
+    if (!this.showHeatMap) {
+      for (let y = 1; y < this.height - 1; y++) {
+        for (let x = 1; x < this.width - 1; x++) {
+          const idx = y * this.width + x;
+          const id = this.grid[idx];
+          const elemDef = ELEMENTS[id];
 
-        if (elemDef && elemDef.glow) {
-          const glowColor = elemDef.color;
-          const neighbors = [
-            idx - 1, idx + 1, idx - this.width, idx + this.width,
-          ];
+          if (elemDef && elemDef.glow) {
+            const glowColor = elemDef.color;
+            const neighbors = [
+              idx - 1, idx + 1, idx - this.width, idx + this.width,
+            ];
 
-          for (const nIdx of neighbors) {
-            if (this.grid[nIdx] === ELEMENT_IDS.EMPTY) {
-              buf[nIdx] =
-                (90 << 24) |
-                (Math.floor(glowColor[2] * 0.7) << 16) |
-                (Math.floor(glowColor[1] * 0.7) << 8) |
-                Math.floor(glowColor[0] * 0.7);
+            for (const nIdx of neighbors) {
+              if (this.grid[nIdx] === ELEMENT_IDS.EMPTY) {
+                buf[nIdx] =
+                  (90 << 24) |
+                  (Math.floor(glowColor[2] * 0.7) << 16) |
+                  (Math.floor(glowColor[1] * 0.7) << 8) |
+                  Math.floor(glowColor[0] * 0.7);
+              }
             }
           }
         }
