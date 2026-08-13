@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    margin: 0;
+    padding: 0;
+    background-color: #000000;
+    font-family: 'Share Tech Mono', 'VT323', ui-monospace, monospace;
+    color: #ffffff;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #root {
+    width: 100vw;
+    height: 100vh;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Custom scrollbars for DOS windows */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #c0c0c0;
+  border: 1px solid #000000;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #0000aa;
+  border: 2px solid #ffffff;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00aaaa;
+}
