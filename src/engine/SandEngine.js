@@ -25,7 +25,7 @@ export class SandEngine {
     this.wind = 0;
     this.particleCount = 0;
     this.audioCallback = null;
-    this.shakeAmount = 0; // Screen shake effect trigger
+    this.shakeAmount = 0;
 
     this.initGrid();
   }
@@ -75,20 +75,24 @@ export class SandEngine {
     this.render();
   }
 
-  // --- Smooth Brush Painting with Fractional Stepping ---
+  // --- Perfect Symmetrical Round Brush Stamp ---
   drawBrush(centerX, centerY, elementId, size = 5, shape = 'circle') {
-    const radius = Math.floor(size / 2);
+    const radius = size / 2;
+    const rSq = radius * radius;
+    const rInt = Math.ceil(radius);
     let painted = 0;
 
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
+    for (let dy = -rInt; dy <= rInt; dy++) {
+      for (let dx = -rInt; dx <= rInt; dx++) {
         const x = Math.floor(centerX + dx);
         const y = Math.floor(centerY + dy);
 
         if (x < 0 || x >= this.width || y < 0 || y >= this.height) continue;
 
-        if (shape === 'circle' && dx * dx + dy * dy > radius * radius + 0.75) {
-          continue;
+        if (shape === 'circle') {
+          // Pixel center offset for smooth round symmetry
+          const distSq = (dx + 0.2) * (dx + 0.2) + (dy + 0.2) * (dy + 0.2);
+          if (distSq > rSq + 0.3) continue;
         }
 
         if (shape === 'spray' && Math.random() > 0.35) {
@@ -97,7 +101,6 @@ export class SandEngine {
 
         const currentElem = this.get(x, y);
 
-        // Erase mode
         if (elementId === ELEMENT_IDS.EMPTY) {
           this.set(x, y, ELEMENT_IDS.EMPTY, 0);
           painted++;
@@ -136,7 +139,6 @@ export class SandEngine {
     }
   }
 
-  // Main CA Loop
   step() {
     this.tickCount++;
     this.updated.fill(0);
@@ -225,7 +227,7 @@ export class SandEngine {
     if (this.tryMove(x, y, x + dir, targetY, id)) return;
     if (this.tryMove(x, y, x - dir, targetY, id)) return;
 
-    // 3. Sideways dispersion flow with momentum
+    // 3. Sideways dispersion flow
     for (let i = dispersion; i >= 1; i--) {
       const spreadDir = Math.random() < 0.5 ? i : -i;
       if (this.tryMove(x, y, x + spreadDir, y, id)) return;
@@ -245,7 +247,6 @@ export class SandEngine {
     } else if (id === ELEMENT_IDS.LAVA) {
       this.reactLava(x, y);
     } else if (id === ELEMENT_IDS.LIQUID_WAX) {
-      // Liquid Wax solidifies if cold
       if (Math.random() < 0.05) {
         this.set(x, y, ELEMENT_IDS.WAX, 0);
       }
@@ -253,7 +254,6 @@ export class SandEngine {
   }
 
   updateGas(x, y, idx, id) {
-    // Gas life decay
     if (this.life[idx] > 0) {
       this.life[idx]--;
       if (this.life[idx] === 0) {
@@ -274,10 +274,8 @@ export class SandEngine {
     const targetY = y + gy;
     const windShift = this.wind + (Math.random() < 0.4 ? (Math.random() < 0.5 ? 1 : -1) : 0);
 
-    // Rise up
     if (this.tryMove(x, y, x + windShift, targetY, id)) return;
 
-    // Rise diagonal
     const dir = Math.random() < 0.5 ? 1 : -1;
     if (this.tryMove(x, y, x + dir, targetY, id)) return;
     if (this.tryMove(x, y, x - dir, targetY, id)) return;
@@ -304,10 +302,9 @@ export class SandEngine {
     else if (id === ELEMENT_IDS.TNT) this.runTNT(x, y, idx);
   }
 
-  // --- Specific Feature Logic ---
+  // --- Actions & Reactions ---
 
   runLaser(x, y) {
-    // Laser Beam shoots downwards/sideways up to 35 cells
     let lx = x;
     let ly = y + 1;
     let range = 35;
@@ -316,7 +313,6 @@ export class SandEngine {
       const targetId = this.get(lx, ly);
 
       if (targetId === ELEMENT_IDS.EMPTY) {
-        // Render bright pink-red beam core
         if (Math.random() < 0.7) {
           this.set(lx, ly, ELEMENT_IDS.SPARK, 2);
         }
@@ -332,7 +328,7 @@ export class SandEngine {
       } else if (targetId === ELEMENT_IDS.WAX) {
         this.set(lx, ly, ELEMENT_IDS.LIQUID_WAX, 0);
       } else if (targetId === ELEMENT_IDS.STONE || targetId === ELEMENT_IDS.GLASS) {
-        break; // Blocked by stone/glass
+        break;
       }
 
       ly++;
@@ -341,7 +337,6 @@ export class SandEngine {
   }
 
   runPortal(x, y, targetPortalId) {
-    // Find Portal B exit location in grid
     let exitX = -1;
     let exitY = -1;
 
@@ -356,9 +351,8 @@ export class SandEngine {
       if (exitX !== -1) break;
     }
 
-    if (exitX === -1) return; // No exit portal active
+    if (exitX === -1) return;
 
-    // Check top of Portal A for incoming elements
     const topId = this.get(x, y - 1);
     if (
       topId !== ELEMENT_IDS.EMPTY &&
@@ -374,7 +368,6 @@ export class SandEngine {
   }
 
   runMite(x, y) {
-    // Bug crawls along plant/stone, eats plants to clone itself
     const neighbors = [
       [x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1],
     ];
@@ -382,12 +375,10 @@ export class SandEngine {
     for (const [nx, ny] of neighbors) {
       const targetId = this.get(nx, ny);
       if (targetId === ELEMENT_IDS.PLANT) {
-        // Eat plant and spawn new Mite!
         this.set(nx, ny, ELEMENT_IDS.MITE, 0);
         if (this.audioCallback && Math.random() < 0.1) this.audioCallback('click');
         return;
       } else if (targetId === ELEMENT_IDS.FIRE || targetId === ELEMENT_IDS.ACID || targetId === ELEMENT_IDS.LAVA) {
-        // Dies in hazards
         this.set(x, y, ELEMENT_IDS.SMOKE, 10);
         return;
       }
@@ -395,12 +386,9 @@ export class SandEngine {
   }
 
   runTNT(x, y, idx) {
-    // TNT fuse countdown if lit
     if (this.life[idx] > 0) {
       this.life[idx]--;
-      // Spawn fuse sparks
       this.set(x, y - 1, ELEMENT_IDS.SPARK, 3);
-
       if (this.life[idx] === 0) {
         this.triggerExplosion(x, y, 16, 'tnt');
       }
@@ -474,8 +462,6 @@ export class SandEngine {
     }
   }
 
-  // --- Reactions ---
-
   reactFire(x, y) {
     const neighbors = [
       [x, y - 1], [x, y + 1], [x - 1, y], [x + 1, y],
@@ -496,7 +482,6 @@ export class SandEngine {
       } else if (targetId === ELEMENT_IDS.GUNPOWDER) {
         this.triggerExplosion(nx, ny, 10, 'gunpowder');
       } else if (targetId === ELEMENT_IDS.TNT) {
-        // Start TNT fuse
         const tntIdx = ny * this.width + nx;
         if (this.life[tntIdx] === 0) this.life[tntIdx] = 12;
       } else if (targetId === ELEMENT_IDS.C4) {
@@ -588,7 +573,6 @@ export class SandEngine {
           const currentId = this.get(x, y);
           if (currentId === ELEMENT_IDS.VOID) continue;
 
-          // Shatter Glass into Sand under violent blasts
           if (currentId === ELEMENT_IDS.GLASS && distSq <= rSq * 0.7) {
             this.set(x, y, ELEMENT_IDS.SAND, 0);
             continue;
@@ -644,8 +628,6 @@ export class SandEngine {
     return false;
   }
 
-  // --- Rendering Loop with Radial Heat Glow Bloom ---
-
   render() {
     if (!this.pixelBuffer32) return;
 
@@ -663,7 +645,7 @@ export class SandEngine {
         color[0];
     }
 
-    // Bloom Pass for Hot glowing elements (Fire, Lava, Lasers, Sparks, Portals)
+    // Bloom Pass
     for (let y = 1; y < this.height - 1; y++) {
       for (let x = 1; x < this.width - 1; x++) {
         const idx = y * this.width + x;
@@ -671,7 +653,6 @@ export class SandEngine {
         const elemDef = ELEMENTS[id];
 
         if (elemDef && elemDef.glow) {
-          // Cast radial glow onto adjacent air/empty pixels
           const glowColor = elemDef.color;
           const neighbors = [
             idx - 1, idx + 1, idx - this.width, idx + this.width,
@@ -680,7 +661,7 @@ export class SandEngine {
           for (const nIdx of neighbors) {
             if (this.grid[nIdx] === ELEMENT_IDS.EMPTY) {
               buf[nIdx] =
-                (90 << 24) | // Alpha glow
+                (90 << 24) |
                 (Math.floor(glowColor[2] * 0.7) << 16) |
                 (Math.floor(glowColor[1] * 0.7) << 8) |
                 Math.floor(glowColor[0] * 0.7);

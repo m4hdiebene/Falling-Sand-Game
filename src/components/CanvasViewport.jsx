@@ -1,17 +1,15 @@
-// Sand-DOS v3.1 Enhanced Viewport with Smooth Interpolation, Screen Shake & Cursor Overlay
+// Sand-DOS v3.1 Ultra-Smooth Canvas Viewport with Catmull-Rom Splines & Exact Coords
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import {
   Play,
   Pause,
   SkipForward,
   Camera,
-  Maximize2,
   Brush,
   Minus,
   Square,
   Sparkles,
 } from 'lucide-react';
-import { ELEMENTS, ELEMENT_IDS, getElementColor } from '../engine/elements';
 import { pcSpeaker } from '../audio/pcSpeaker';
 
 export const CanvasViewport = ({
@@ -24,16 +22,16 @@ export const CanvasViewport = ({
   onUpdateStats,
 }) => {
   const canvasRef = useRef(null);
-  const cursorCanvasRef = useRef(null);
   const containerRef = useRef(null);
 
   const [isPaused, setIsPaused] = useState(false);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [lastPos, setLastPos] = useState(null);
-  const [cursorPos, setCursorPos] = useState(null);
-  const [toolMode, setToolMode] = useState('freehand'); // 'freehand', 'line', 'box'
+  const [toolMode, setToolMode] = useState('freehand');
   const [startPoint, setStartPoint] = useState(null);
+
+  // Buffer of last points for Catmull-Rom spline curve smoothing
+  const strokePointsRef = useRef([]);
 
   // Sync physics
   useEffect(() => {
@@ -50,7 +48,7 @@ export const CanvasViewport = ({
     }
   }, [engine]);
 
-  // Main Render Loop with Screen Shake
+  // Main Animation Render Loop
   useEffect(() => {
     if (!engine) return;
 
@@ -75,7 +73,7 @@ export const CanvasViewport = ({
 
       engine.render();
 
-      // Screen shake decay animation
+      // Screen shake animation
       if (engine.shakeAmount > 0) {
         if (canvasRef.current) {
           const offsetX = (Math.random() - 0.5) * engine.shakeAmount * 1.5;
@@ -102,27 +100,87 @@ export const CanvasViewport = ({
     return () => cancelAnimationFrame(animId);
   }, [engine, isPaused, speedMultiplier, onUpdateStats]);
 
-  // High-Precision Screen to Grid Coordinate Conversion
+  // --- Exact Coordinate Calculation (Accounting for object-contain Letterbox) ---
   const getGridCoords = useCallback(
     (e) => {
       if (!canvasRef.current || !engine) return null;
-      const rect = canvasRef.current.getBoundingClientRect();
+
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-      const scaleX = engine.width / rect.width;
-      const scaleY = engine.height / rect.height;
+      // Calculate actual content area inside object-contain letterboxing
+      const cw = engine.width;
+      const ch = engine.height;
+      const rw = rect.width;
+      const rh = rect.height;
 
-      const x = (clientX - rect.left) * scaleX;
-      const y = (clientY - rect.top) * scaleY;
+      const canvasAspect = cw / ch;
+      const rectAspect = rw / rh;
 
-      if (x < 0 || x >= engine.width || y < 0 || y >= engine.height) return null;
-      return { x: Math.floor(x), y: Math.floor(y) };
+      let renderW, renderH, offsetX, offsetY;
+
+      if (rectAspect > canvasAspect) {
+        renderH = rh;
+        renderW = rh * canvasAspect;
+        offsetX = (rw - renderW) / 2;
+        offsetY = 0;
+      } else {
+        renderW = rw;
+        renderH = rw / canvasAspect;
+        offsetX = 0;
+        offsetY = (rh - renderH) / 2;
+      }
+
+      const contentLeft = rect.left + offsetX;
+      const contentTop = rect.top + offsetY;
+
+      const x = (clientX - contentLeft) * (cw / renderW);
+      const y = (clientY - contentTop) * (ch / renderH);
+
+      if (x < 0 || x >= cw || y < 0 || y >= ch) return null;
+      return { x: Math.floor(x), y: Math.floor(y), rawX: x, rawY: y };
     },
     [engine]
   );
 
-  // Ultra-Smooth Fractional Line Stepping Algorithm
+  // --- Catmull-Rom Spline Curve Interpolation for Ultra-Smooth Curves ---
+  const drawSplineSegment = useCallback(
+    (p0, p1, p2, p3) => {
+      if (!engine) return;
+
+      // Catmull-Rom spline formula
+      const steps = Math.ceil(Math.hypot(p2.rawX - p1.rawX, p2.rawY - p1.rawY) * 2.5);
+      const numSteps = Math.max(steps, 4);
+
+      for (let i = 0; i <= numSteps; i++) {
+        const t = i / numSteps;
+        const t2 = t * t;
+        const t3 = t2 * t;
+
+        const x =
+          0.5 *
+          (2 * p1.rawX +
+            (-p0.rawX + p2.rawX) * t +
+            (2 * p0.rawX - 5 * p1.rawX + 4 * p2.rawX - p3.rawX) * t2 +
+            (-p0.rawX + 3 * p1.rawX - 3 * p2.rawX + p3.rawX) * t3);
+
+        const y =
+          0.5 *
+          (2 * p1.rawY +
+            (-p0.rawY + p2.rawY) * t +
+            (2 * p0.rawY - 5 * p1.rawY + 4 * p2.rawY - p3.rawY) * t2 +
+            (-p0.rawY + 3 * p1.rawY - 3 * p2.rawY + p3.rawY) * t3);
+
+        engine.drawBrush(Math.floor(x), Math.floor(y), selectedElement, brushSize, brushShape);
+      }
+    },
+    [engine, selectedElement, brushSize, brushShape]
+  );
+
+  // Straight line interpolation
   const drawDenseLine = useCallback(
     (x0, y0, x1, y1) => {
       if (!engine) return;
@@ -130,13 +188,7 @@ export const CanvasViewport = ({
       const dy = y1 - y0;
       const distance = Math.hypot(dx, dy);
 
-      if (distance === 0) {
-        engine.drawBrush(x0, y0, selectedElement, brushSize, brushShape);
-        return;
-      }
-
-      // Step along line every 0.5 grid cells for unbroken smooth lines!
-      const stepCount = Math.ceil(distance * 2);
+      const stepCount = Math.ceil(distance * 3);
       for (let i = 0; i <= stepCount; i++) {
         const t = i / stepCount;
         const currX = Math.floor(x0 + dx * t);
@@ -147,51 +199,13 @@ export const CanvasViewport = ({
     [engine, selectedElement, brushSize, brushShape]
   );
 
-  // Render Visual Brush Cursor Preview on Cursor Overlay Canvas
-  const drawCursorOverlay = useCallback(() => {
-    const ctx = cursorCanvasRef.current?.getContext('2d');
-    if (!ctx || !cursorCanvasRef.current || !canvasRef.current || !engine) return;
-
-    ctx.clearRect(0, 0, cursorCanvasRef.current.width, cursorCanvasRef.current.height);
-
-    if (!cursorPos) return;
-
-    const rect = canvasRef.current.getBoundingClientRect();
-    cursorCanvasRef.current.width = rect.width;
-    cursorCanvasRef.current.height = rect.height;
-
-    const scaleX = rect.width / engine.width;
-    const scaleY = rect.height / engine.height;
-
-    const px = cursorPos.x * scaleX + scaleX / 2;
-    const py = cursorPos.y * scaleY + scaleY / 2;
-    const r = (brushSize / 2) * scaleX;
-
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([4, 4]);
-
-    if (brushShape === 'circle') {
-      ctx.beginPath();
-      ctx.arc(px, py, Math.max(r, 4), 0, Math.PI * 2);
-      ctx.stroke();
-    } else {
-      const boxSize = Math.max(r * 2, 8);
-      ctx.strokeRect(px - boxSize / 2, py - boxSize / 2, boxSize, boxSize);
-    }
-  }, [cursorPos, brushSize, brushShape, engine]);
-
-  useEffect(() => {
-    drawCursorOverlay();
-  }, [cursorPos, brushSize, brushShape, drawCursorOverlay]);
-
   const handlePointerDown = (e) => {
     const coords = getGridCoords(e);
     if (!coords) return;
 
     setIsDrawing(true);
-    setLastPos(coords);
     setStartPoint(coords);
+    strokePointsRef.current = [coords, coords, coords];
 
     if (toolMode === 'freehand') {
       engine.drawBrush(coords.x, coords.y, selectedElement, brushSize, brushShape);
@@ -200,30 +214,33 @@ export const CanvasViewport = ({
 
   const handlePointerMove = (e) => {
     const coords = getGridCoords(e);
-    if (!coords) {
-      setCursorPos(null);
-      return;
-    }
-
-    setCursorPos(coords);
+    if (!coords) return;
 
     if (onUpdateStats) {
       onUpdateStats({ cursorX: coords.x, cursorY: coords.y });
     }
 
     if (isDrawing && toolMode === 'freehand') {
-      if (lastPos) {
-        drawDenseLine(lastPos.x, lastPos.y, coords.x, coords.y);
+      const pts = strokePointsRef.current;
+      pts.push(coords);
+
+      if (pts.length >= 4) {
+        const p0 = pts[pts.length - 4];
+        const p1 = pts[pts.length - 3];
+        const p2 = pts[pts.length - 2];
+        const p3 = pts[pts.length - 1];
+
+        drawSplineSegment(p0, p1, p2, p3);
       } else {
-        engine.drawBrush(coords.x, coords.y, selectedElement, brushSize, brushShape);
+        const last = pts[pts.length - 2];
+        drawDenseLine(last.x, last.y, coords.x, coords.y);
       }
-      setLastPos(coords);
     }
   };
 
   const handlePointerUp = (e) => {
-    if (isDrawing && coordsUp(e)) {
-      const endCoords = coordsUp(e);
+    if (isDrawing && toolMode !== 'freehand') {
+      const endCoords = getGridCoords(e);
       if (toolMode === 'line' && startPoint && endCoords) {
         drawDenseLine(startPoint.x, startPoint.y, endCoords.x, endCoords.y);
       } else if (toolMode === 'box' && startPoint && endCoords) {
@@ -241,11 +258,9 @@ export const CanvasViewport = ({
     }
 
     setIsDrawing(false);
-    setLastPos(null);
     setStartPoint(null);
+    strokePointsRef.current = [];
   };
-
-  const coordsUp = (e) => getGridCoords(e);
 
   const handleSnapshot = () => {
     if (!canvasRef.current) return;
@@ -326,7 +341,7 @@ export const CanvasViewport = ({
             }`}
             title="Freehand Pen Tool"
           >
-            <Brush className="h-3 w-3" /> Pen
+            <Brush className="h-3 w-3" /> Smooth Pen
           </button>
 
           <button
@@ -373,21 +388,12 @@ export const CanvasViewport = ({
           onMouseDown={handlePointerDown}
           onMouseMove={handlePointerMove}
           onMouseUp={handlePointerUp}
-          onMouseLeave={() => {
-            handlePointerUp();
-            setCursorPos(null);
-          }}
+          onMouseLeave={handlePointerUp}
           onTouchStart={handlePointerDown}
           onTouchMove={handlePointerMove}
           onTouchEnd={handlePointerUp}
           className="h-full w-full object-contain cursor-crosshair transition-transform duration-75"
           style={{ imageRendering: 'pixelated' }}
-        />
-
-        {/* Visual Brush Cursor Overlay */}
-        <canvas
-          ref={cursorCanvasRef}
-          className="pointer-events-none absolute inset-0 h-full w-full object-contain"
         />
       </div>
     </div>
