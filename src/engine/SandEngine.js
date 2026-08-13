@@ -736,13 +736,13 @@ export class SandEngine {
         this.set(nx, ny, ELEMENT_IDS.WATER, 0);
       } else if (targetId === ELEMENT_IDS.WAX) {
         this.set(nx, ny, ELEMENT_IDS.LIQUID_WAX, 0);
-      } else if (targetId === ELEMENT_IDS.STONE && Math.random() < 0.03) {
+      } else if (targetId === ELEMENT_IDS.STONE && Math.random() < 0.15) {
         this.set(nx, ny, ELEMENT_IDS.LAVA, 0);
-      } else if (targetId === ELEMENT_IDS.SAND && Math.random() < 0.05) {
+      } else if (targetId === ELEMENT_IDS.SAND && Math.random() < 0.4) {
         this.set(nx, ny, ELEMENT_IDS.GLASS, 0);
-      } else if (targetId === ELEMENT_IDS.MUD && Math.random() < 0.1) {
+      } else if (targetId === ELEMENT_IDS.MUD && Math.random() < 0.2) {
         this.set(nx, ny, ELEMENT_IDS.STONE, 0); // Bake mud to brick/stone
-      } else if (targetId === ELEMENT_IDS.CEMENT && Math.random() < 0.1) {
+      } else if (targetId === ELEMENT_IDS.CEMENT && Math.random() < 0.2) {
         this.set(nx, ny, ELEMENT_IDS.CONCRETE, 0); // Cure cement instantly
       }
     }
@@ -809,15 +809,17 @@ export class SandEngine {
         this.set(x, y, ELEMENT_IDS.STONE, 0);
         this.set(nx, ny, ELEMENT_IDS.STEAM, 60);
         return;
-      } else if (targetId === ELEMENT_IDS.OIL || targetId === ELEMENT_IDS.PLANT || targetId === ELEMENT_IDS.GAS_FUEL) {
+      } else if (targetId === ELEMENT_IDS.OIL || targetId === ELEMENT_IDS.GAS_FUEL) {
+        this.set(nx, ny, ELEMENT_IDS.FIRE, 25);
+      } else if (targetId === ELEMENT_IDS.PLANT) {
         this.set(nx, ny, ELEMENT_IDS.FIRE, 25);
       } else if (targetId === ELEMENT_IDS.GUNPOWDER || targetId === ELEMENT_IDS.C4 || targetId === ELEMENT_IDS.TNT) {
         this.triggerExplosion(nx, ny, targetId === ELEMENT_IDS.C4 ? 26 : 14, targetId);
       } else if (targetId === ELEMENT_IDS.WAX) {
         this.set(nx, ny, ELEMENT_IDS.LIQUID_WAX, 0);
-      } else if (targetId === ELEMENT_IDS.SAND && Math.random() < 0.1) {
+      } else if (targetId === ELEMENT_IDS.SAND && Math.random() < 0.3) {
         this.set(nx, ny, ELEMENT_IDS.GLASS, 0);
-      } else if (targetId === ELEMENT_IDS.GLASS && Math.random() < 0.05) {
+      } else if (targetId === ELEMENT_IDS.GLASS && Math.random() < 0.15) {
         this.set(nx, ny, ELEMENT_IDS.LAVA, 0); // Melt glass back to lava slowly
       }
     }
