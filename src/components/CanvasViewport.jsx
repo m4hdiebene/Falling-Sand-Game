@@ -39,6 +39,26 @@ export const CanvasViewport = ({
   const [startPoint, setStartPoint] = useState(null);
 
   const strokePointsRef = useRef([]);
+  const isDrawingRef = useRef(false);
+  const currentPointerRef = useRef(null);
+
+  const toolPropsRef = useRef({
+    selectedElement,
+    brushSize,
+    brushShape,
+    toolMode,
+    replaceTarget,
+  });
+
+  useEffect(() => {
+    toolPropsRef.current = {
+      selectedElement,
+      brushSize,
+      brushShape,
+      toolMode,
+      replaceTarget,
+    };
+  }, [selectedElement, brushSize, brushShape, toolMode, replaceTarget]);
 
   // Sync physics
   useEffect(() => {
@@ -75,6 +95,21 @@ export const CanvasViewport = ({
       if (!isPaused) {
         for (let s = 0; s < speedMultiplier; s++) {
           engine.step();
+        }
+      }
+
+      // Continuous drawing while mouse is held down (even if stationary)
+      if (isDrawingRef.current && currentPointerRef.current) {
+        const props = toolPropsRef.current;
+        if (props.toolMode === 'freehand' || props.toolMode === 'replace') {
+          engine.drawBrush(
+            currentPointerRef.current.x,
+            currentPointerRef.current.y,
+            props.selectedElement,
+            props.brushSize,
+            props.brushShape,
+            props.toolMode === 'replace' ? props.replaceTarget : null
+          );
         }
       }
 
@@ -234,7 +269,9 @@ export const CanvasViewport = ({
     engine.pushUndoState();
 
     setIsDrawing(true);
+    isDrawingRef.current = true;
     setStartPoint(coords);
+    currentPointerRef.current = coords;
     strokePointsRef.current = [coords, coords, coords];
 
     if (toolMode === 'freehand' || toolMode === 'replace') {
@@ -252,6 +289,8 @@ export const CanvasViewport = ({
   const handlePointerMove = (e) => {
     const coords = getGridCoords(e);
     if (!coords || !engine) return;
+    
+    currentPointerRef.current = coords;
 
     // Inspect hovered element, temperature, and charge
     const idx = engine.getIndex(coords.x, coords.y);
@@ -307,7 +346,9 @@ export const CanvasViewport = ({
     }
 
     setIsDrawing(false);
+    isDrawingRef.current = false;
     setStartPoint(null);
+    currentPointerRef.current = null;
     strokePointsRef.current = [];
   };
 
