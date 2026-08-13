@@ -2,22 +2,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Folder,
-  FlaskConical,
   Volume2,
   VolumeX,
   Tv,
   HelpCircle,
-  Award,
-  BookOpen,
-  Sparkles,
   RotateCcw,
+  BookOpen,
 } from 'lucide-react';
 import { pcSpeaker } from '../audio/pcSpeaker';
 
 export const DosHeader = ({
   onOpenPresets,
   onOpenMatrix,
-  onOpenShareware,
   onOpenHelp,
   onClearCanvas,
   crtEnabled,
@@ -53,7 +49,7 @@ export const DosHeader = ({
         {/* Brand Header */}
         <div className="flex items-center space-x-1.5 pr-2 border-r border-[#5555FF] font-bold text-[#FFFF55]">
           <span className="text-base animate-pulse">⏳</span>
-          <span className="hidden sm:inline tracking-widest uppercase">SAND-DOS v3.1</span>
+          <span className="hidden sm:inline tracking-widest uppercase">SAND-DOS v3.1 PRO</span>
         </div>
 
         {/* Menu 1: File */}
@@ -98,9 +94,9 @@ export const DosHeader = ({
             pcSpeaker.playClick();
             onOpenPresets();
           }}
-          className="px-2 py-0.5 hover:bg-[#00AAAA] hover:text-black hidden sm:block"
+          className="px-2 py-0.5 hover:bg-[#00AAAA] hover:text-black hidden sm:block font-bold text-[#FFFF55]"
         >
-          <span className="underline">P</span>resets
+          <span className="underline">P</span>resets (F2)
         </button>
 
         {/* Menu 3: Matrix */}
@@ -112,17 +108,6 @@ export const DosHeader = ({
           className="px-2 py-0.5 hover:bg-[#00AAAA] hover:text-black hidden md:block"
         >
           <span className="underline">R</span>eaction Matrix
-        </button>
-
-        {/* Menu 4: Register Shareware */}
-        <button
-          onClick={() => {
-            pcSpeaker.playClick();
-            onOpenShareware();
-          }}
-          className="px-2 py-0.5 bg-[#AA0000] hover:bg-[#FF5555] text-[#FFFF55] font-bold animate-pulse"
-        >
-          ★ Order Form (F9)
         </button>
       </div>
 

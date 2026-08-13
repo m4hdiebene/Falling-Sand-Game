@@ -10,7 +10,6 @@ import { DosStatusBar } from './components/DosStatusBar';
 import { CrtOverlay } from './components/CrtOverlay';
 import { PresetsModal } from './components/PresetsModal';
 import { ReactionMatrixModal } from './components/ReactionMatrixModal';
-import { SharewareModal } from './components/SharewareModal';
 import { HelpModal } from './components/HelpModal';
 
 export function App() {
@@ -22,17 +21,15 @@ export function App() {
   const [gravityDir, setGravityDir] = useState('down');
   const [windForce, setWindForce] = useState(0);
 
-  const [toolMode, setToolMode] = useState('freehand'); // 'freehand', 'line', 'box', 'eyedropper', 'replace'
+  const [toolMode, setToolMode] = useState('freehand');
   const [replaceTarget, setReplaceTarget] = useState(null);
 
   const [crtEnabled, setCrtEnabled] = useState(true);
   const [soundMuted, setSoundMuted] = useState(false);
-  const [isRegistered, setIsRegistered] = useState(false);
   const [showHeatMap, setShowHeatMap] = useState(false);
 
   const [showPresets, setShowPresets] = useState(false);
   const [showMatrix, setShowMatrix] = useState(false);
-  const [showShareware, setShowShareware] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
 
   const [stats, setStats] = useState({
@@ -59,7 +56,6 @@ export function App() {
         return;
       }
 
-      // Undo Ctrl+Z / Redo Ctrl+Y
       if (e.ctrlKey || e.metaKey) {
         if (e.key.toLowerCase() === 'z') {
           e.preventDefault();
@@ -97,16 +93,12 @@ export function App() {
           engine.showHeatMap = next;
           return next;
         });
-      } else if (key === 'F9') {
-        e.preventDefault();
-        setShowShareware((prev) => !prev);
       } else if (key === 'C') {
         engine.clear();
       } else if (key === 'ESCAPE') {
         setShowHelp(false);
         setShowPresets(false);
         setShowMatrix(false);
-        setShowShareware(false);
       }
 
       const num = parseInt(key);
@@ -134,7 +126,6 @@ export function App() {
       <DosHeader
         onOpenPresets={() => setShowPresets(true)}
         onOpenMatrix={() => setShowMatrix(true)}
-        onOpenShareware={() => setShowShareware(true)}
         onOpenHelp={() => setShowHelp(true)}
         onClearCanvas={() => engine.clear()}
         crtEnabled={crtEnabled}
@@ -198,13 +189,6 @@ export function App() {
       <ReactionMatrixModal
         isOpen={showMatrix}
         onClose={() => setShowMatrix(false)}
-      />
-
-      <SharewareModal
-        isOpen={showShareware}
-        onClose={() => setShowShareware(false)}
-        isRegistered={isRegistered}
-        setIsRegistered={setIsRegistered}
       />
 
       <HelpModal

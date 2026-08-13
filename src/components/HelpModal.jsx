@@ -21,22 +21,24 @@ export const HelpModal = ({ isOpen, onClose }) => {
     { key: 'Z', action: 'Select Laser Emitter' },
     { key: 'B', action: 'Select Bug / Mite' },
     { key: 'T', action: 'Select TNT Dynamite' },
-    { key: 'U', action: 'Select Portal Blue (A)' },
-    { key: 'J', action: 'Select Portal Orange (B)' },
-    { key: 'F', action: 'Select LPG Fuel Gas' },
+    { key: 'E', action: 'Select Copper Wire' },
+    { key: 'R', action: 'Select Battery Power' },
+    { key: 'H', action: 'Select Heater' },
     { key: 'C', action: 'Clear All Particles' },
     { key: 'SPACE', action: 'Pause / Resume Simulation' },
     { key: 'F1', action: 'Help & Controls Manual' },
     { key: 'F2', action: 'Load Preset Scenarios' },
     { key: 'F3', action: 'Toggle PC Speaker Audio' },
     { key: 'F4', action: 'Toggle CRT Scanline Overlay' },
-    { key: 'F9', action: 'Shareware Order Form' },
+    { key: 'F5', action: 'Toggle Thermal Heat Map View' },
+    { key: 'Ctrl+Z', action: 'Undo Edit Action' },
+    { key: 'Ctrl+Y', action: 'Redo Edit Action' },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 font-mono select-none backdrop-blur-xs">
       <DosWindow
-        title="SAND-DOS v3.1 USER MANUAL & HOTKEYS (F1)"
+        title="SAND-DOS v3.1 PRO USER MANUAL & HOTKEYS (F1)"
         onClose={onClose}
         className="w-full max-w-xl max-h-[85vh]"
         headerBg="bg-[#0000AA]"
@@ -47,7 +49,7 @@ export const HelpModal = ({ isOpen, onClose }) => {
               <HelpCircle className="h-4 w-4" /> DOS CELLULAR AUTOMATA ENGINE CONTROLS
             </span>
             <p className="text-[11px] text-[#444444]">
-              Click or touch and drag on the canvas to paint elements. Switch tools between Pen, Straight Line, and Box Fill modes on top toolbar.
+              Click or touch and drag on the canvas to paint elements. Everything is 100% unlocked! Switch tools between Pen, Straight Line, Box Fill, Replace, and Eyedropper Inspector.
             </p>
           </div>
 
